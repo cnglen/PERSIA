@@ -9,5 +9,4 @@ include = '\.pyi?$'
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
-write_to = "persia/version.py"
-write_to_template = "__version__ = \"{version}\""
+version_file = "persia/_version.py"

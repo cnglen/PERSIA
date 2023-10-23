@@ -142,3 +142,5 @@ cython_debug/
 
 # macos file
 .DS_Store
+
+_version.py
