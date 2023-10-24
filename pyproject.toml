@@ -1,6 +1,36 @@
 [build-system]
-requires = ["setuptools >= 43.0.0", "wheel", "setuptools-rust", "colorama", "tqdm", "setuptools_scm[toml]>=6.0"]
+requires = ["setuptools >= 68.2.2", "wheel", "setuptools-rust", "colorama", "tqdm", "setuptools_scm[toml]>=8.0", "build"]
 build-backend = 'setuptools.build_meta'
+
+[project]
+name = "persia"
+requires-python = ">=3.9"
+dependencies = [
+             "colorlog",
+             "pyyaml",
+             "click",
+             "honcho",
+             "cloudpickle"
+]
+authors = [
+        {name = "Kuaishou AI Platform Persia Team", email = "admin@mail.xrlian.com"},
+]
+description = "PersiaML Python Library"
+dynamic = ["version"]
+readme = "README.md"
+
+[project.urls]
+homepage = "https://github.com/PersiaML/PersiaML"
+
+[project.scripts]
+persia-launcher = "persia.launcher:cli"
+persia-k8s-utils = "persia.k8s_utils:cli"
+
+
+[tool.setuptools.packages.find]
+include = ["persia", "persia.embedding"]
+exclude = ["test*", "examples"]  # exclude packages matching these glob patterns (empty by default)
+namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [tool.black]
 line-length = 88
@@ -10,3 +40,18 @@ include = '\.pyi?$'
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
 version_file = "persia/_version.py"
+
+[[tool.setuptools-rust.ext-modules]]
+target = "persia.persia_core"  # The last part of the name (e.g. "_lib") has to match lib.name in Cargo.toml
+path = "rust/persia-core/Cargo.toml"
+py-limited-api = "auto"  # Default value, can be omitted
+binding = "PyO3"  # Default value, can be omitted
+# See reference for RustExtension in https://setuptools-rust.readthedocs.io/en/latest/reference.html
+
+[[tool.setuptools-rust.bins]]
+target = {persia-embedding-worker = "persia.persia_embedding_worker", persia-embedding-parameter-server = "persia.persia_embedding_parameter_server"}
+path = "rust/persia-embedding-server/Cargo.toml"
+
+[[tool.setuptools-rust.bins]]
+target = {gencrd = "persia.gencrd", operator="persia.operator", e2e="persia.e2e_test"}
+path = "k8s/Cargo.toml"

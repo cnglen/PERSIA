@@ -1,0 +1,17 @@
+** nats
+
+wget -c https://github.com/nats-io/natscli/releases/download/v0.1.1/nats-0.1.1-linux-amd64.zip
+
+unzip nats-0.1.1-linux-amd64.zip
+
+sudo mv nats-0.1.1-linux-amd64/nats /usr/bin/
+
+
+nats sub msg.test
+
+
+** build
+
+python -m build
+
+NATIVE=1 pip install .
