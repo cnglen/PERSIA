@@ -1,17 +1,72 @@
-** nats
-
-wget -c https://github.com/nats-io/natscli/releases/download/v0.1.1/nats-0.1.1-linux-amd64.zip
-
-unzip nats-0.1.1-linux-amd64.zip
-
-sudo mv nats-0.1.1-linux-amd64/nats /usr/bin/
-
-
-nats sub msg.test
-
-
 ** build
 
 python -m build
 
 NATIVE=1 pip install .
+
+persia-0.1.dev253-cp39-cp39-macosx_10_4_x86_64.whl
+
+* 代码结构
+
+persia: python代码, 最核心的python代码，部分模块由rust编写
+
+- logger.py: 封装logging.logger
+- k8s_utils.py: 命令行程序，支持以下子命令(Rust编译的bin文件)
+  - gencrd
+  - operator
+  - server
+- launcher.py: 命令行程序，支持以下子命令:
+  - nn_worker: python -m torch.distributed.launch
+  - data_loader: python filepath?
+  - embedding_worker:
+  - embedding_parameter_server:
+
+- ctx.py:
+- env.py:
+  - PERSIA_LAUNCHER_VERBOSE
+  - PERSIA_SKIP_CHECK_DATA
+  - _Env: 抽象成一个类，这个类从环境变量获取一些数据
+
+- distributed.py:
+  - DistribuedBaseOption 抽象类，将torch model转换为 ddp model, 比如pyTorch.DDP或BaguaDistributionOption
+    - master_addr:master_port
+  - DDPOption
+  - BaguaDistribuedOption
+  - get_default_distributed_option
+    - backend: nccl/gloo
+
+- ctx.py
+
+
+
+- data.py:
+  - DataLoader: 对PersiaBatch进行预处理, lookup embedding (Forward, see Rust persial_core)
+  - StreamingDataset: generate PersiaBatch  from the dataflow
+  - IterableDataset: generate PersiaBatch locally
+- utils.py: 常用的函数收集在这里，比如设置随机种子、load/dump yaml
+- prelude.py:
+  - 导入persia_core模块
+- service.py:
+  get_embedding_worker_services(): 从环境变量EMBEDDING_WORKER_SERVICE获取 host:port
+
+- ext module:
+  - persia.persia_core
+- bin:
+  - persia.persia_embedding_worker
+  - persia.persia_embedding_parameter_server
+  - persia.gencrd
+  - persia.operator
+  - persia.e2etest
+
+rust: 目录是rust代码
+
+k8s: k8s相关的rust底码，编译生成gencrd/operator/server/e2e可执行程序
+
+resources: grafna的yaml/json配置文件，以及服务proto
+
+
+[[tool.setuptools-rust.bins]]
+target = {gencrd = "persia.gencrd", operator="persia.operator", e2e="persia.e2e_test"}
+path = "k8s/Cargo.toml"
+
+将rust编译产出的gencrd, 安装到persia目录，比如 /opt/anaconda3/lib/python3.9/site-packages/persia/
