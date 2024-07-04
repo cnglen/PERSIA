@@ -7,10 +7,10 @@
 
   persia.gencrd -h
 
-
 #+end_src
 
 persia-0.1.dev253-cp39-cp39-macosx_10_4_x86_64.whl
+
 
 *** FAQ
 
@@ -92,6 +92,25 @@ subprocess.run(env={}) 支持环境变量
 
 - utils.py: 一些常见的函数
 - logger.py: 封装logging.logger
+
+
+* 代码结构
+
+persia: python代码, 最核心的python代码，部分模块由rust编写
+
+- logger.py: 封装logging.logger
+- k8s_utils.py: 命令行程序，支持以下子命令(Rust编译的bin文件)
+  - gencrd
+  - operator
+  - server
+- launcher.py: 命令行程序，支持以下子命令:
+  - nn_worker: python -m torch.distributed.launch
+  - data_loader: python filepath?
+  - embedding_worker:
+  - embedding_parameter_server:
+
+- ctx.py:
+
 - env.py:
   - PERSIA_LAUNCHER_VERBOSE
   - PERSIA_SKIP_CHECK_DATA
@@ -135,6 +154,8 @@ subprocess.run(env={}) 支持环境变量
   - get_default_distributed_option
     - backend: nccl/gloo, ddp backend, nccl ~ CUDA device, gloo ~ CPU device
 
+
+
 - data.py:
   - DataLoader: 对PersiaBatch进行预处理, lookup embedding (Forward, see Rust persial_core)
     - 用dataset初始化, 构建forward_engine: Forward(RUST实现)
@@ -163,6 +184,12 @@ subprocess.run(env={}) 支持环境变量
  - PersiaServiceCtr: 模拟分布式的PERSIA环境
 
 
+
+
+
+- ctx.py
+
+
 - utils.py: 常用的函数收集在这里，比如设置随机种子、load/dump yaml
 - prelude.py:
   - 导入persia_core模块
@@ -172,6 +199,7 @@ subprocess.run(env={}) 支持环境变量
 - ext module:
   - persia.persia_core
 
+
 - bin:
   - persia.persia_embedding_worker
   - persia.persia_embedding_parameter_server
@@ -179,9 +207,11 @@ subprocess.run(env={}) 支持环境变量
   - persia.operator
   - persia.e2etest
 
+
 ** rust
 
 目录是rust代码
+
 
 k8s: k8s相关的rust底码，编译生成gencrd/operator/server/e2e可执行程序
 
@@ -193,6 +223,7 @@ target = {gencrd = "persia.gencrd", operator="persia.operator", e2e="persia.e2e_
 path = "k8s/Cargo.toml"
 
 将rust编译产出的gencrd, 安装到persia目录，比如 /opt/anaconda3/lib/python3.9/site-packages/persia/
+
 
 * nats
 
