@@ -1,48 +1,168 @@
 ** build
 
-python -m build
+#+begin_src bash
+  python -m pip install build
+  python -m build
+  NATIVE=1 pip install .
 
-NATIVE=1 pip install .
+  persia.gencrd -h
+
+
+#+end_src
 
 persia-0.1.dev253-cp39-cp39-macosx_10_4_x86_64.whl
 
+*** FAQ
+
+ERROR: persia-0.1.dev254-cp311-cp312-any.whl is not a supported wheel on this platform.
+
+pip install -U pip 解决
+
+
+core not found
+
+(base) ➜  ~ persia-launcher
+Traceback (most recent call last):
+  File "/opt/anaconda3/bin/persia-launcher", line 5, in <module>
+    from persia.launcher import cli
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/__init__.py", line 9, in <module>
+    from persia import ctx as ctx
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/ctx.py", line 13, in <module>
+    from persia.embedding.optim import Optimizer
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/embedding/optim.py", line 4, in <module>
+    from persia.prelude import OptimizerBase
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/prelude.py", line 6, in <module>
+    import persia_core
+ModuleNotFoundError: No module named 'persia_core'
+(base) ➜  ~ which persia-launcher
+/opt/anaconda3/bin/persia-launcher
+(base) ➜  ~ /opt/anaconda3/bin/persia-launcher
+Traceback (most recent call last):
+  File "/opt/anaconda3/bin/persia-launcher", line 5, in <module>
+    from persia.launcher import cli
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/__init__.py", line 9, in <module>
+    from persia import ctx as ctx
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/ctx.py", line 13, in <module>
+    from persia.embedding.optim import Optimizer
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/embedding/optim.py", line 4, in <module>
+    from persia.prelude import OptimizerBase
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/prelude.py", line 6, in <module>
+    import persia_core
+ModuleNotFoundError: No module named 'persia_core'
+
+
+(base) ➜  ~ python
+Python 3.11.7 (main, Dec 15 2023, 12:09:04) [Clang 14.0.6 ] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import persia
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/__init__.py", line 9, in <module>
+    from persia import ctx as ctx
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/ctx.py", line 13, in <module>
+    from persia.embedding.optim import Optimizer
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/embedding/optim.py", line 4, in <module>
+    from persia.prelude import OptimizerBase
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/prelude.py", line 6, in <module>
+    import persia_core
+ModuleNotFoundError: No module named 'persia_core'
+
+persia-launch -h
+Traceback (most recent call last):
+  File "/opt/anaconda3/bin/persia-launcher", line 5, in <module>
+    from persia.launcher import cli
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/__init__.py", line 10, in <module>
+    from persia import ctx as ctx
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/ctx.py", line 13, in <module>
+    from persia.embedding.optim import Optimizer
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/embedding/optim.py", line 4, in <module>
+    from persia.prelude import OptimizerBase
+  File "/opt/anaconda3/lib/python3.11/site-packages/persia/prelude.py", line 6, in <module>
+    import persia_core
+ModuleNotFoundError: No module named 'persia_core'
+
+
 * 代码结构
 
-persia: python代码, 最核心的python代码，部分模块由rust编写
+** persia
 
+python代码, 最核心的python代码，部分模块由rust编写
+
+subprocess.run(env={}) 支持环境变量
+
+- utils.py: 一些常见的函数
 - logger.py: 封装logging.logger
-- k8s_utils.py: 命令行程序，支持以下子命令(Rust编译的bin文件)
-  - gencrd
-  - operator
-  - server
-- launcher.py: 命令行程序，支持以下子命令:
-  - nn_worker: python -m torch.distributed.launch
-  - data_loader: python filepath?
-  - embedding_worker:
-  - embedding_parameter_server:
-
-- ctx.py:
 - env.py:
   - PERSIA_LAUNCHER_VERBOSE
   - PERSIA_SKIP_CHECK_DATA
   - _Env: 抽象成一个类，这个类从环境变量获取一些数据
+    - replica_index: replica index of current service
+    - replica_size: number of services launched by k8s
+    - world_size: number of processes
+    - rank:  rank of current process
+    - local_rank: local rank of current process (rank of the process on the local machine)
 
-- distributed.py:
-  - DistribuedBaseOption 抽象类，将torch model转换为 ddp model, 比如pyTorch.DDP或BaguaDistributionOption
-    - master_addr:master_port
+- k8s_utils.py: 命令行程序persia-k8s-utils，支持gencrd/operator/server三个子命令, 分别依赖于为Rust编译的bin文件gencrd/operator/server。k8s_utils封装了一些默认命令行参数，比如端口号, 见=persia-k8s-utils -h=
+  - gencrd: ~persia-k8s-utils gencrd -h~,
+  - operator: ~persia-k8s-utils operator -h~
+  - server: ~persia-k8s-utils server -h~
+
+- launcher.py: 命令行程序persia-launcher，支持以下子命令:
+  - nn_worker: 底层调用~python -m torch.distributed.launch nnworker -h~,
+    - ~persia-launcher nnworker -h~
+  - data_loader: python data_loader.py(PERSIA_DATALOADER_ENTRY)
+  - embedding_worker: ~persia-embedding-worker~ from rust
+  - embedding_parameter_server: ~persia-embedding-parameter-server~ from rust
+
+- distributed.py: 将module转为分布式的DDP模型 -> parallel_model, optimizer
+  - DistribuedBaseOption 抽象类，将torch model转换为 ddp(distributed data parallel) model, 比如pyTorch.DDP或BaguaDistributionOption
+    - data member:
+      - master_addr: 可选，可以通过nats service获取
+      - master_port
+    - method member:
+      - convert2distributed_model():
+      - init_with_env_file()
+
   - DDPOption
-  - BaguaDistribuedOption
+    - torch.distributed.init_process_group()
+    - torch.nn.parallel.DistributedDataParallel()
+
+  - BaguaDistribuedOption:
+    - BAGUA: Scaling up Distributed Learning with System Relaxations
+    - https://dragonfive.github.io/post/kuai-shou-de-ba-gua-bagua-lun-wen-fan-yi-yu-shang-xi/
+    - https://tutorials.baguasys.com/algorithms
+
   - get_default_distributed_option
-    - backend: nccl/gloo
-
-- ctx.py
-
-
+    - backend: nccl/gloo, ddp backend, nccl ~ CUDA device, gloo ~ CPU device
 
 - data.py:
   - DataLoader: 对PersiaBatch进行预处理, lookup embedding (Forward, see Rust persial_core)
-  - StreamingDataset: generate PersiaBatch  from the dataflow
-  - IterableDataset: generate PersiaBatch locally
+    - 用dataset初始化, 构建forward_engine: Forward(RUST实现)
+  - IterableDatasetBase:
+    - StreamingDataset: generate PersiaBatch from the dataflow
+    - IterableDataset: generate PersiaBatch locally
+
+- ctx.py
+  - PreprocessMode:
+    - TRAIN: require_grad = True
+    - EVAL:  require_grad = False
+    - INFERENCE: require_grad=False, EmbeddingCtx process PersiaTrainingBatch without out a target tensor
+  - EmbeddingCtx:
+    - FP
+  - TrainCtx:
+    - BP
+  - InferCtx:
+    -
+  - BaseCtx:
+    - __enter__, __exit__, 上下文管理器, 定义了在执行 with 语句时要建立的运行时上下文。
+  - DataCtx: 将PersiaBatch传送个NN worker和embedding worker
+
+
+- helper.py:
+  - cloudpickle: cloudpickle makes it possible to serialize Python constructs not supported by the default pickle module from the Python standard library. cloudpickle is especially useful for cluster computing where Python code is shipped over the network to execute on remote hosts, possibly close to the data.
+ - PersiaServiceCtr: 模拟分布式的PERSIA环境
+
+
 - utils.py: 常用的函数收集在这里，比如设置随机种子、load/dump yaml
 - prelude.py:
   - 导入persia_core模块
@@ -51,6 +171,7 @@ persia: python代码, 最核心的python代码，部分模块由rust编写
 
 - ext module:
   - persia.persia_core
+
 - bin:
   - persia.persia_embedding_worker
   - persia.persia_embedding_parameter_server
@@ -58,7 +179,9 @@ persia: python代码, 最核心的python代码，部分模块由rust编写
   - persia.operator
   - persia.e2etest
 
-rust: 目录是rust代码
+** rust
+
+目录是rust代码
 
 k8s: k8s相关的rust底码，编译生成gencrd/operator/server/e2e可执行程序
 
@@ -70,3 +193,7 @@ target = {gencrd = "persia.gencrd", operator="persia.operator", e2e="persia.e2e_
 path = "k8s/Cargo.toml"
 
 将rust编译产出的gencrd, 安装到persia目录，比如 /opt/anaconda3/lib/python3.9/site-packages/persia/
+
+* nats
+
+NATS - The Edge & Cloud Native Messaging System, GO language, rust client
