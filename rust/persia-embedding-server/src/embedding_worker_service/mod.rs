@@ -1569,7 +1569,7 @@ mod lookup_batched_all_slots_preprocess_tests {
 
     #[test]
     fn test_indices_to_hashstack_indices() {
-        let config = "feature_index_prefix_bit: 12\nslots_config:\n  Test:\n    dim: 32\n    hash_stack_config:\n      hash_stack_rounds: 2\n      embedding_size: 10\nfeature_groups: {}\n";
+        let config = "feature_index_prefix_bit: 12\nslots_config:\n  Test:\n    dim: 32\n    hash_stack_config:\n      hash_stack_rounds: 2\n      embedding_size: 10000000\nfeature_groups: {}\n";
 
         let config: EmbeddingConfig = serde_yaml::from_str(config).expect("failed to parse config");
 
@@ -1583,8 +1583,10 @@ mod lookup_batched_all_slots_preprocess_tests {
             enter_post_forward_buffer_time: None,
             batcher_idx: None,
         };
+        println!("before: {id_type_feature_batch:?}");
         indices_to_hashstack_indices(&mut id_type_feature_batch, &config);
         let hashstack_feature_batch = id_type_feature_batch.batches.first().unwrap();
+        println!("after:  {id_type_feature_batch:?}");
 
         let target_raw_batch: Vec<Vec<u64>> = vec![
             vec![2, 18, 5, 10, 0, 11],

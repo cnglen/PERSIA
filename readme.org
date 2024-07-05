@@ -14,60 +14,12 @@ persia-0.1.dev253-cp39-cp39-macosx_10_4_x86_64.whl
 
 *** FAQ
 
-ERROR: persia-0.1.dev254-cp311-cp312-any.whl is not a supported wheel on this platform.
+**** ERROR: persia-0.1.dev254-cp311-cp312-any.whl is not a supported wheel on this platform.
 
 pip install -U pip 解决
 
-
-core not found
-
-(base) ➜  ~ persia-launcher
-Traceback (most recent call last):
-  File "/opt/anaconda3/bin/persia-launcher", line 5, in <module>
-    from persia.launcher import cli
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/__init__.py", line 9, in <module>
-    from persia import ctx as ctx
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/ctx.py", line 13, in <module>
-    from persia.embedding.optim import Optimizer
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/embedding/optim.py", line 4, in <module>
-    from persia.prelude import OptimizerBase
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/prelude.py", line 6, in <module>
-    import persia_core
-ModuleNotFoundError: No module named 'persia_core'
-(base) ➜  ~ which persia-launcher
-/opt/anaconda3/bin/persia-launcher
-(base) ➜  ~ /opt/anaconda3/bin/persia-launcher
-Traceback (most recent call last):
-  File "/opt/anaconda3/bin/persia-launcher", line 5, in <module>
-    from persia.launcher import cli
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/__init__.py", line 9, in <module>
-    from persia import ctx as ctx
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/ctx.py", line 13, in <module>
-    from persia.embedding.optim import Optimizer
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/embedding/optim.py", line 4, in <module>
-    from persia.prelude import OptimizerBase
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/prelude.py", line 6, in <module>
-    import persia_core
-ModuleNotFoundError: No module named 'persia_core'
-
-
-(base) ➜  ~ python
-Python 3.11.7 (main, Dec 15 2023, 12:09:04) [Clang 14.0.6 ] on darwin
-Type "help", "copyright", "credits" or "license" for more information.
->>> import persia
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/__init__.py", line 9, in <module>
-    from persia import ctx as ctx
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/ctx.py", line 13, in <module>
-    from persia.embedding.optim import Optimizer
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/embedding/optim.py", line 4, in <module>
-    from persia.prelude import OptimizerBase
-  File "/opt/anaconda3/lib/python3.11/site-packages/persia/prelude.py", line 6, in <module>
-    import persia_core
-ModuleNotFoundError: No module named 'persia_core'
-
-persia-launch -h
+**** No module named persia_core
+persia-launch
 Traceback (most recent call last):
   File "/opt/anaconda3/bin/persia-launcher", line 5, in <module>
     from persia.launcher import cli
@@ -81,6 +33,109 @@ Traceback (most recent call last):
     import persia_core
 ModuleNotFoundError: No module named 'persia_core'
 
+python setup.py 会将xx.so安装到/opt/anaconda3/lib/python3.11/site-packages, python -m build 安装到/opt/anaconda3/lib/python3.11/site-packages/persia, 导致import persia加载失败。
+- setup: /opt/anaconda3/lib/python3.11/site-packages/persia_core.cpython-311-darwin.so
+- pyproject: /opt/anaconda3/lib/python3.11/site-packages/persia/persia_core.cpython-311-darwin.so
+
+import sys， sys.modules: key为模块名称，value为映射到已经被加载的模块；sys.path: 指定模块的搜索路径。初始化自环境变量 PYTHONPATH，再加上一条与安装有关的默认路径。
+
+
+sys.path
+
+['/opt/anaconda3/bin',
+ '/opt/anaconda3/lib/python311.zip',
+ '/opt/anaconda3/lib/python3.11',
+ '/opt/anaconda3/lib/python3.11/lib-dynload',
+ '',
+ '/Users/wanggang/.local/lib/python3.11/site-packages',
+ '/opt/anaconda3/lib/python3.11/site-packages',
+ '/opt/anaconda3/lib/python3.11/site-packages/aeosa']
+
+#+begin_src python
+sys.path.append('/opt/anaconda3/lib/python3.11/site-packages/persia')
+#+end_src
+
+
+* 理论
+
+nn_worker
+embedding_worker
+embedding_ps
+data_loader
+
+https://persiaml-tutorials.pages.dev/configuration/
+
+u64:
+- first n bits:   feature bits
+- last 64-n bits: index bits
+
+FeatureBatch:
+- feature_name: 特征名
+- batch_size:
+- sample_num_signs: 每个sample含几个signs, 序列特征: 会有多个值
+- index_batch: value -> [(row_index, col_index), ...]
+- hashed2index_batch_idx: value -> index of hashmap
+
+HashMapEmbeddingEntry: (sign, dim, embedding)
+
+
+rust/persia-embedding-server/src/embedding_worker_service/mod.rs 是sign的逻辑
+
+embedding_size是矩阵的行数
+
+#+begin_src bash
+cd rust/persia-embedding-server
+cargo test test_indices_to_hashstack_indices -- --show-output
+#+end_src
+
+
+
+
+
+#+begin_src rust
+  impl FeatureBatch {
+      pub fn new(feature_name: String, batch: Vec<Vec<u64>>) -> Self {
+          let batch_size = batch.len(); // 矩阵行数，也是一个batch有几个sample
+          let mut sample_num_signs = Vec::with_capacity(batch_size); // 每个sample有几个特征值，通常是1, 对于序列和tag特征，>=0
+
+          let mut m: HashMap<u64, Vec<(u16, u16)>> = HashMap::default();
+          batch
+              .into_iter()
+              .enumerate()
+              .for_each(|(batch_idx, indices)| { // row_index=batch_index, indices=values
+                  sample_num_signs.push(indices.len() as u32); // 计算当前特征有几个值，通常是1, 对于序列和tag特征，>=0
+                  indices.into_iter().enumerate().for_each(|(col_idx, id)| { // col_index, id=value
+                      m.entry(id)
+                          .or_default()
+                          .push((batch_idx as u16, col_idx as u16));  // value -> [(batch_index=row_index, col_inex), ...]
+                  })
+              });
+          let mut hashed2index_batch_idx: HashMap<u64, i64> = HashMap::default();
+          m.iter().enumerate().for_each(|(idx, (id, _))| { // idx=batch_index, (id=value, _)
+              hashed2index_batch_idx.insert(*id, idx as i64); // value -> index of hash map
+          });
+          Self {
+              feature_name,
+              index_batch: m
+                  .into_iter()
+                  .map(|x| SingleSignInFeatureBatch { // sign: value, in_which_batch_samples: [(batch_index, col_index), (batch_index, col_index), ...]
+                      sign: x.0,
+                      in_which_batch_samples: x.1,
+                  })
+                  .collect_vec(),
+              sample_num_signs,
+              hashed2index_batch_idx,
+              batch_size: batch_size as u16,
+          }
+      }
+  }
+
+#+end_src
+
+SingleSignInFeatureBatch:
+- sign:
+- in_which_batch_samples:
+
 
 * 代码结构
 
@@ -91,13 +146,6 @@ python代码, 最核心的python代码，部分模块由rust编写
 subprocess.run(env={}) 支持环境变量
 
 - utils.py: 一些常见的函数
-- logger.py: 封装logging.logger
-
-
-* 代码结构
-
-persia: python代码, 最核心的python代码，部分模块由rust编写
-
 - logger.py: 封装logging.logger
 - k8s_utils.py: 命令行程序，支持以下子命令(Rust编译的bin文件)
   - gencrd
@@ -127,7 +175,7 @@ persia: python代码, 最核心的python代码，部分模块由rust编写
   - server: ~persia-k8s-utils server -h~
 
 - launcher.py: 命令行程序persia-launcher，支持以下子命令:
-  - nn_worker: 底层调用~python -m torch.distributed.launch nnworker -h~,
+  - nn_worker: 底层调用~python -m torch.distributed.launch -h~,
     - ~persia-launcher nnworker -h~
   - data_loader: python data_loader.py(PERSIA_DATALOADER_ENTRY)
   - embedding_worker: ~persia-embedding-worker~ from rust
@@ -228,3 +276,7 @@ path = "k8s/Cargo.toml"
 * nats
 
 NATS - The Edge & Cloud Native Messaging System, GO language, rust client
+
+* 已知问题
+
+pyo3是0.15.1, 旧版本，当时不一定支持python 3.11
