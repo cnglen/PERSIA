@@ -1569,7 +1569,10 @@ mod lookup_batched_all_slots_preprocess_tests {
 
     #[test]
     fn test_indices_to_hashstack_indices() {
-        let config = "feature_index_prefix_bit: 12\nslots_config:\n  Test:\n    dim: 32\n    hash_stack_config:\n      hash_stack_rounds: 2\n      embedding_size: 10000000\nfeature_groups: {}\n";
+        // config + raw_batch ->
+        let config = "feature_index_prefix_bit: 12\nslots_config:\n  Test:\n    dim: 32\n    hash_stack_config:\n      hash_stack_rounds: 3\n      embedding_size: 10000000\nfeature_groups: {}\n";
+
+        println!("config={config}");
 
         let config: EmbeddingConfig = serde_yaml::from_str(config).expect("failed to parse config");
 
@@ -1627,6 +1630,8 @@ mod lookup_batched_all_slots_preprocess_tests {
         ];
         let feature_name = "feature1".to_string();
         let feature_batch = FeatureBatch::new(feature_name.clone(), raw_batch.clone());
+        println!("config={config:?}");
+        println!("feature_batch={feature_batch:?}");
         let mut id_type_feature_batch = IDTypeFeatureBatch {
             requires_grad: false,
             batches: vec![feature_batch],
@@ -1634,7 +1639,9 @@ mod lookup_batched_all_slots_preprocess_tests {
             enter_post_forward_buffer_time: None,
             batcher_idx: None,
         };
+        println!("id_type_feature_batch={id_type_feature_batch:?}");
         indices_add_prefix(&mut id_type_feature_batch, &config);
+        println!("id_type_feature_batch={id_type_feature_batch:?}");
         let result_feature_batch = id_type_feature_batch.batches.first().unwrap();
 
         result_feature_batch.index_batch.iter().for_each(|x| {
